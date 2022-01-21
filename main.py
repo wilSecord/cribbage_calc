@@ -1,6 +1,7 @@
-from itertools import combinations
+from itertools import combinations, groupby
 import collections
 import tkinter as tk
+from operator import itemgetter
 
 class Hand:
     def __init__(self, cards):
@@ -8,6 +9,7 @@ class Hand:
         self.c_nums = [c.n for c in cards]
         self.points = 0
         self.dupes = []
+        self.o = [c.order for c in cards]
 
     def app_flipped(self, c):
         self.cards.append(c)
@@ -15,31 +17,72 @@ class Hand:
 
     def solve(self):
         combos = [list(combinations(self.c_nums, i)) for i in range(2, 6)]
+        order = [list(combinations(self.o, i)) for i in range(3, 6)]
 
-        for i in range(2, 5):
-            t = [item for item, count in collections.Counter(self.c_nums).items() if count == i]
-            if t:
-                for item in t:
-                    self.points += i * (i - 1)
+        count = 0
+        n = len(self.cards)
+        for i in range(n):
+            for j in range(i + 1, n):
+                if self.cards[i].n == self.cards[j].n:
+                    self.points += 2
+                    print('Pair for 2')
+
+        # a = [item for item, count in collections.Counter(order).items() if count > 2]
+        runs = []
+        for item in order:
+            for thing in item:
+                if len(thing) == (max(thing) - min(thing) + 1) and len(thing) == len(set(thing)):
+                    # self.points += len(thing)
+                    # print(f'run of {len(thing)}')
+                    runs.append(thing)
+        if runs:
+            self.points += len(max(runs)) * runs.count(max(runs))
+            print(f'{runs.count(max(runs))} run(s) of {len(max(runs))}')
+
+        # for k in range(len(order)):
+        #     for i in range(len(order)):
+        #         for j in range(i + 1, len(order)):
+        #             try:
+        #                 if all(item in order[j] for item in order[i]):
+        #                     order.remove(order[i])
+        #                     print(order)
+        #                 else:
+        #                     break
+        #             except IndexError:
+        #                 pass
+        # for item in order:
+        #     self.points += len(item)
+        #     print(f'Item: {item}')
 
         for item in combos:
             for thing in item:
-                if sorted(thing) == list(range(min(thing), max(thing) + 1)):
-                    if len(thing) > 2:
-                        self.points += len(thing)
-                if sum(thing) == 15:
-                    self.points += 2
+                try:
+                    if sum(thing) == 15:
+                        self.points += 2
+                        print('15 for 2 ', thing)
+                except TypeError:
+                    if ('K' in thing and 5 in thing) or ('Q' in thing and 5 in thing) or ('J' in thing and 5 in thing):
+                        if len(thing) == 2:
+                            self.points += 2
+                            print('15 for 2 ', thing)
 
+
+
+        cs = set()
         for c in self.cards:
-            cs = set()
             cs.add(c.suit)
-            if len(cs) == 5:
-                self.points += 5
+        if len(cs) == 1:
+            self.points += 5
+            print('Same suit for 5')
 
         for c in self.cards[:4]:
-            if c.sub_card == 'J':
-                if c.suit == self.cards[4].suit:
-                    self.points += 1
+            if c.n == 'J':
+                try:
+                    if c.suit == self.cards[4].suit:
+                        self.points += 1
+                        print('Right Jack for 1')
+                except IndexError:
+                    pass
 
         return self.points
 
@@ -48,11 +91,10 @@ class Card:
     def __init__(self, n, suit):
         self.n = n
         self.suit = suit
-        self.sub_card = ''
+        self.order = 0
 
-    def assign_sc(self, sc):
-        self.n = 10
-        self.sub_card = sc
+    def assign_order(self, o):
+        self.order = o
 
     def __repr__(self):
         return f'{self.n}{self.suit}'
@@ -81,28 +123,25 @@ def submit():
 
             try:
                 try:
-                    a = int(item.get()[0])
-                    cards.append(Card(int(item.get()[0]), item.get()[1]))
+                    if len(item.get()) > 2:
+                        a = int(item.get()[:2])
+                    else:
+                        a = int(item.get()[0])
+                    cur = Card(a, item.get()[1])
+                    cur.assign_order(a)
+                    cards.append(cur)
                 except ValueError:
+                    cur = Card(item.get()[0].upper(), item.get()[1])
+                    print(cur)
                     match item.get()[0].upper():
                         case 'J':
-                            cns.append(item.get()[0])
-                            css.append(item.get()[1])
-                            cur = Card(item.get()[0], item.get()[1])
-                            cur.assign_sc('J')
-                            cards.append(cur)
+                            cur.assign_order(11)
                         case 'Q':
-                            cns.append(item.get()[0])
-                            css.append(item.get()[1])
-                            cur = Card(item.get()[0], item.get()[1])
-                            cur.assign_sc('Q')
-                            cards.append(cur)
+                            cur.assign_order(12)
                         case 'K':
-                            cns.append(item.get()[0])
-                            css.append(item.get()[1])
-                            cur = Card(item.get()[0], item.get()[1])
-                            cur.assign_sc('J')
-                            cards.append(cur)
+                            cur.assign_order(13)
+                    cards.append(cur)
+
                 h = Hand(cards)
                 run = False
 
